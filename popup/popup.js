@@ -130,24 +130,25 @@ document.addEventListener('DOMContentLoaded', () => {
       return null;
     }
   }
-  
+
   function extractLocationFromResponse(responseText) {
     // Display the assistant's reply
-    document.getElementById('status').textContent = 'Assistant response received.';
+    // document.getElementById('status').textContent = 'Assistant response received.';
   
     // For simplicity, assume the assistant provides the location name directly.
     const locationName = responseText.trim();
   
     if (locationName) {
       document.getElementById('location-name').textContent = locationName;
+      document.getElementById('status').textContent = '';
   
       // Convert location name to coordinates
-      geocodeLocationName(locationName);
+    //   geocodeLocationName(locationName);
     } else {
       document.getElementById('status').textContent = 'Could not extract location name.';
     }
   }
-  
+  /*
   function geocodeLocationName(locationName) {
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationName)}&key=YOUR_GOOGLE_MAPS_API_KEY`;
   
@@ -166,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status').textContent = 'Error fetching coordinates.';
       });
   }
+
   
   function initMap(latitude, longitude) {
     const mapDiv = document.getElementById('map');
@@ -183,4 +185,5 @@ document.addEventListener('DOMContentLoaded', () => {
       map: map
     });
   }
+ */
   
