@@ -1,27 +1,25 @@
 {
     "manifest_version": 3,
-    "name": "Reading time",
+    "name": "Location Finder",
     "version": "1.0",
-    "description": "Add the reading time to Chrome Extension documentation articles",
+    "description": "Captures a screenshot and finds its location.",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage",
+        "tabs"
+    ],
+    "host_permissions": [
+        "https://api.openai.com/*",
+        "https://maps.googleapis.com/*",
+         "https://api.cloudinary.com/*"
+    ],
    
-    "action": {
+    "action" : {
       "default_popup": "popup/popup.html",
-      "default_icon": "images/hello_extensions.png"
-    },
-
-  
-  
-   "icons": {
-    "16": "images/hello_extensions.png"
-   },
-      
-    "content_scripts": [
-      {
-        "js": ["scripts/content.js"],
-        "matches": [
-          "https://developer.chrome.com/docs/extensions/*",
-          "https://developer.chrome.com/docs/webstore/*"
-        ]
+      "default_icon": {
+        "16": "images/hello_extensions.png"
       }
-    ]
+    }
   }
+  
