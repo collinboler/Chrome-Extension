@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
             {
               type: "text",
               text: "Guess this location's exact coordinates, and only output the coordinates of your best guess followed by the location's name or general regional location. \
-              your response should look something like this for example: 39, 94.5 Kansas City, Kansas"
+              your response should look something like this for example: 39, 94.5 Kansas City, Kansas. Answer as fast as possible!!"
             },
             {
               type: "image_url",
