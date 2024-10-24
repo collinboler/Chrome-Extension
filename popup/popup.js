@@ -1,189 +1,84 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const captureButton = document.getElementById('capture-button');
-    const saveApiKeyButton = document.getElementById('save-api-key-button');
-    const apiKeyInput = document.getElementById('api-key-input');
-    const statusDiv = document.getElementById('status');
-  
-    // Load API key from storage
-    chrome.storage.local.get(['openaiApiKey'], (result) => {
-      if (result.openaiApiKey) {
-        apiKeyInput.value = result.openaiApiKey;
+  // Load stored API key, word, sentence, and result
+  chrome.storage.local.get(['apiKey', 'word', 'sentence', 'result'], (items) => {
+      if (items.apiKey) {
+          document.getElementById('apiKey').value = items.apiKey;
       }
-    });
-  
-    saveApiKeyButton.addEventListener('click', () => {
-      const apiKey = apiKeyInput.value.trim();
-      if (apiKey) {
-        chrome.storage.local.set({ openaiApiKey: apiKey }, () => {
-          statusDiv.textContent = 'API Key saved!';
-          setTimeout(() => { statusDiv.textContent = ''; }, 2000);
-        });
-      } else {
-        statusDiv.textContent = 'Please enter a valid API Key.';
+      if (items.word) {
+          document.getElementById('word').value = items.word;
       }
-    });
-  
-    captureButton.addEventListener('click', () => {
-      chrome.storage.local.get(['openaiApiKey'], (result) => {
-        if (result.openaiApiKey) {
-          captureScreen(result.openaiApiKey);
-        } else {
-          statusDiv.textContent = 'Please enter your OpenAI API Key.';
-        }
-      });
-    });
+      if (items.sentence) {
+          document.getElementById('sentence').value = items.sentence;
+      }
+      if (items.result) {
+          document.getElementById('result').textContent = items.result;
+      }
   });
-  
-  function captureScreen(apiKey) {
-    chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
-      if (chrome.runtime.lastError) {
-        document.getElementById('status').textContent = 'Error capturing screen: ' + chrome.runtime.lastError.message;
-        return;
-      }
-      processImage(dataUrl, apiKey);
-    });
+});
+
+// Save API Key when "Save API Key" button is clicked
+document.getElementById('saveApiKey').addEventListener('click', () => {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) {
+      alert('Please enter your API key.');
+      return;
   }
-  
-  async function processImage(dataUrl, apiKey) {
-    document.getElementById('status').textContent = 'Processing image...';
-  
-    try {
-      // Upload the image to get a publicly accessible URL
-      const imageUrl = await uploadImage(dataUrl);
-  
-      if (!imageUrl) {
-        document.getElementById('status').textContent = 'Error uploading image.';
-        return;
-      }
-  
-      // Construct the messages array
-      const messages = [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Guess this location's exact coordinates, and only output the coordinates of your best guess followed by the location's name or general regional location. \
-              your response should look something like this for example: 39, 94.5 Kansas City, Kansas. Answer as fast as possible!!"
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: imageUrl
-              }
-            }
-          ]
-        }
-      ];
-  
-      // Call the OpenAI API
+  // Save the API key
+  chrome.storage.local.set({ 'apiKey': apiKey }, () => {
+      alert('API key saved.');
+  });
+});
+
+document.getElementById('submit').addEventListener('click', async () => {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const word = document.getElementById('word').value.trim();
+  const sentence = document.getElementById('sentence').value.trim();
+  const resultDiv = document.getElementById('result');
+  resultDiv.textContent = 'Loading...';
+
+  if (!apiKey || !word || !sentence) {
+      resultDiv.textContent = 'Please fill in all fields.';
+      return;
+  }
+
+  // Save the word and sentence
+  chrome.storage.local.set({ 'word': word, 'sentence': sentence });
+
+  const prompt = `Provide synonyms for the word "${word}" that make sense in the context of the sentence: "${sentence}". Provide three. If no suitable replacements, reply with "No suitable replacements."`;
+
+  try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: messages,
-          max_tokens: 300
-        })
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+              model: 'gpt-3.5-turbo',
+              messages: [
+                  { "role": "user", "content": prompt }
+              ]
+          })
       });
-  
-      const data = await response.json();
-  
-      if (response.ok) {
-        const assistantReply = data.choices[0].message.content;
-        extractLocationFromResponse(assistantReply);
-      } else {
-        document.getElementById('status').textContent = 'Error: ' + data.error.message;
-      }
-    } catch (error) {
-      document.getElementById('status').textContent = 'Error: ' + error.message;
-    }
-  }
-  
-  async function uploadImage(dataUrl) {
-    try {
-      const cloudName = 'dg6ksg0a2';
-      const uploadPreset = 'GeoExtension';
-  
-      const formData = new FormData();
-      formData.append('file', dataUrl);
-      formData.append('upload_preset', uploadPreset);
-  
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
-        method: 'POST',
-        body: formData
-      });
-  
-      const data = await response.json();
-  
-      if (data.secure_url) {
-        return data.secure_url;
-      } else {
-        console.error('Image upload failed:', data);
-        return null;
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      return null;
-    }
-  }
 
-  function extractLocationFromResponse(responseText) {
-    // Display the assistant's reply
-    // document.getElementById('status').textContent = 'Assistant response received.';
-  
-    // For simplicity, assume the assistant provides the location name directly.
-    const locationName = responseText.trim();
-  
-    if (locationName) {
-      document.getElementById('location-name').textContent = locationName;
-      document.getElementById('status').textContent = '';
-  
-      // Convert location name to coordinates
-    //   geocodeLocationName(locationName);
-    } else {
-      document.getElementById('status').textContent = 'Could not extract location name.';
-    }
-  }
-  /*
-  function geocodeLocationName(locationName) {
-    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationName)}&key=YOUR_GOOGLE_MAPS_API_KEY`;
-  
-    fetch(geocodeUrl)
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === 'OK' && data.results.length > 0) {
-          const location = data.results[0].geometry.location;
-          initMap(location.lat, location.lng);
-          document.getElementById('status').textContent = 'Location found and displayed on map.';
-        } else {
-          document.getElementById('status').textContent = 'Could not geocode the location name.';
-        }
-      })
-      .catch(error => {
-        document.getElementById('status').textContent = 'Error fetching coordinates.';
-      });
-  }
+      if (!response.ok) {
+          const error = await response.json();
+          resultDiv.textContent = `Error: ${error.error.message}`;
+          // Save the error message to storage
+          chrome.storage.local.set({ 'result': resultDiv.textContent });
+          return;
+      }
 
-  
-  function initMap(latitude, longitude) {
-    const mapDiv = document.getElementById('map');
-    mapDiv.style.display = 'block';
-  
-    const location = { lat: latitude, lng: longitude };
-  
-    const map = new google.maps.Map(mapDiv, {
-      center: location,
-      zoom: 8
-    });
-  
-    new google.maps.Marker({
-      position: location,
-      map: map
-    });
+      const data = await response.json();
+      const reply = data.choices[0].message.content.trim();
+      resultDiv.textContent = reply;
+
+      // Save the result to storage
+      chrome.storage.local.set({ 'result': reply });
+  } catch (error) {
+      console.error(error);
+      resultDiv.textContent = 'An error occurred.';
+      // Save the error message to storage
+      chrome.storage.local.set({ 'result': resultDiv.textContent });
   }
- */
-  
+});
