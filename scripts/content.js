@@ -1,174 +1,124 @@
-// content.js
+// Function to check if we are inside Google Docs and adjust accordingly
+function isGoogleDocs() {
+  return window.location.host.includes("docs.google.com");
+}
 
-(function() {
-  let iconDiv;
-  let popupDiv;
+// Function to handle highlighting in Google Docs
+function handleGoogleDocsSelection() {
+  let selectedText = document.getSelection().toString().trim();
 
-  // Function to create and show the synonym icon
-  function showIcon(x, y, selectedText) {
-      removeIcon(); // Remove existing icon if any
+  // Check if text is selected
+  if (selectedText.length > 0) {
+      let range = document.getSelection().getRangeAt(0).getBoundingClientRect();
+      createPopupIcon(range.right, range.top + window.scrollY, selectedText);
+  }
+}
 
-      iconDiv = document.createElement('div');
-      iconDiv.style.position = 'absolute';
-      iconDiv.style.left = `${x}px`;
-      iconDiv.style.top = `${y}px`;
-      iconDiv.style.zIndex = 2147483647; // Max z-index
-      iconDiv.style.cursor = 'pointer';
-      iconDiv.title = 'Get Synonyms';
-      iconDiv.textContent = '🔍';
-      iconDiv.style.fontSize = '20px';
-      iconDiv.style.backgroundColor = '#fff';
-      iconDiv.style.border = '1px solid #ccc';
-      iconDiv.style.borderRadius = '4px';
-      iconDiv.style.padding = '2px';
+// Function to handle normal text editor selection
+function handleNormalSelection() {
+  const selectedText = window.getSelection().toString().trim();
 
-      document.body.appendChild(iconDiv);
-
-      iconDiv.addEventListener('click', () => {
-          getSynonyms(selectedText);
-          removeIcon();
-      });
+  // Remove any existing popup if no text is selected
+  let existingPopup = document.getElementById('synonym-popup');
+  if (existingPopup) {
+      existingPopup.remove();
   }
 
-  // Function to remove the icon
-  function removeIcon() {
-      if (iconDiv) {
-          iconDiv.remove();
-          iconDiv = null;
-      }
+  if (selectedText.length > 0) {
+      const range = window.getSelection().getRangeAt(0).getBoundingClientRect();
+      createPopupIcon(range.right, range.top + window.scrollY, selectedText);
   }
+}
 
-  // Function to create and show the synonyms popup
-  function showPopup(x, y, synonyms, selectedText) {
-      removePopup(); // Remove existing popup if any
+// Function to create a popup icon and place it near the selected word
+function createPopupIcon(x, y, selectedText) {
+  let existingPopup = document.getElementById('synonym-popup');
+  if (existingPopup) existingPopup.remove();
 
-      popupDiv = document.createElement('div');
-      popupDiv.style.position = 'absolute';
-      popupDiv.style.left = `${x}px`;
-      popupDiv.style.top = `${y}px`;
-      popupDiv.style.zIndex = 2147483647; // Max z-index
-      popupDiv.style.backgroundColor = '#fff';
-      popupDiv.style.border = '1px solid #ccc';
-      popupDiv.style.padding = '10px';
-      popupDiv.style.maxWidth = '200px';
-      popupDiv.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
-      popupDiv.style.fontSize = '14px';
+  let popupIcon = document.createElement('div');
+  popupIcon.id = 'synonym-popup';
+  popupIcon.innerHTML = `<img src="${chrome.runtime.getURL("images/hello_extensions.png")}" />`;
 
-      if (synonyms === 'No suitable replacements.') {
-          popupDiv.textContent = synonyms;
-      } else {
-          synonyms.split(', ').forEach((synonym) => {
-              const synonymDiv = document.createElement('div');
-              synonymDiv.textContent = synonym;
-              synonymDiv.style.cursor = 'pointer';
-              synonymDiv.style.padding = '5px 0';
+  popupIcon.style.position = 'absolute';
+  popupIcon.style.left = `${x + 5}px`;
+  popupIcon.style.top = `${y - 10}px`;
+  popupIcon.style.width = '24px';
+  popupIcon.style.height = '24px';
+  popupIcon.style.border = '1px solid #ccc';
+  popupIcon.style.borderRadius = '50%';
+  popupIcon.style.backgroundColor = '#f1f1f1';
+  popupIcon.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
+  popupIcon.style.cursor = 'pointer';
+  popupIcon.style.zIndex = '10000';
 
-              synonymDiv.addEventListener('click', () => {
-                  replaceSelectedText(synonym);
-                  removePopup();
+  document.body.appendChild(popupIcon);
+
+  // Click event to show synonym suggestions
+  popupIcon.addEventListener('click', function () {
+      showSynonymWindow(popupIcon, selectedText);
+  });
+}
+
+// Function to show the mini-window with synonym suggestions
+function showSynonymWindow(popupIcon, selectedText) {
+  const synonymWindow = document.createElement('div');
+  synonymWindow.style.position = 'absolute';
+  synonymWindow.style.top = `${popupIcon.getBoundingClientRect().top - 40}px`;
+  synonymWindow.style.left = `${popupIcon.getBoundingClientRect().left}px`;
+  synonymWindow.style.backgroundColor = 'white';
+  synonymWindow.style.border = '1px solid #ccc';
+  synonymWindow.style.borderRadius = '5px';
+  synonymWindow.style.padding = '8px';
+  synonymWindow.style.fontSize = '14px';
+  synonymWindow.style.maxWidth = '200px';
+  synonymWindow.style.zIndex = '10001';
+  synonymWindow.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
+
+  synonymWindow.innerHTML = "<strong>Synonyms:</strong><br/>";
+  synonymWindow.innerHTML += `<div style="padding: 4px;">Loading synonyms for "${selectedText}"...</div>`;
+
+  document.body.appendChild(synonymWindow);
+
+  // Fetch and display synonyms from background.js
+  chrome.runtime.sendMessage({ action: 'fetchSynonyms', word: selectedText }, function(response) {
+      synonymWindow.innerHTML = "<strong>Synonyms:</strong><br/>";
+      if (response && response.synonyms) {
+          response.synonyms.forEach(synonym => {
+              const synonymItem = document.createElement('div');
+              synonymItem.style.cursor = 'pointer';
+              synonymItem.style.padding = '4px 6px';
+              synonymItem.style.borderRadius = '3px';
+              synonymItem.textContent = synonym;
+              synonymItem.addEventListener('click', () => {
+                  replaceWord(selectedText, synonym);
+                  synonymWindow.remove();
               });
-
-              popupDiv.appendChild(synonymDiv);
+              synonymItem.addEventListener('mouseover', () => {
+                  synonymItem.style.backgroundColor = '#f1f1f1';
+              });
+              synonymItem.addEventListener('mouseout', () => {
+                  synonymItem.style.backgroundColor = 'white';
+              });
+              synonymWindow.appendChild(synonymItem);
           });
-      }
-
-      // Add a close button
-      const closeButton = document.createElement('div');
-      closeButton.textContent = 'Close';
-      closeButton.style.marginTop = '10px';
-      closeButton.style.cursor = 'pointer';
-      closeButton.style.color = '#007BFF';
-      closeButton.addEventListener('click', () => {
-          removePopup();
-      });
-      popupDiv.appendChild(closeButton);
-
-      document.body.appendChild(popupDiv);
-  }
-
-  // Function to remove the popup
-  function removePopup() {
-      if (popupDiv) {
-          popupDiv.remove();
-          popupDiv = null;
-      }
-  }
-
-  // Function to get synonyms via background script
-  function getSynonyms(selectedText) {
-      chrome.runtime.sendMessage({ action: 'getSynonyms', selectedText: selectedText }, (response) => {
-          if (response && response.synonyms) {
-              const selection = window.getSelection();
-              if (selection.rangeCount === 0) return;
-
-              const range = selection.getRangeAt(0);
-              const rect = range.getBoundingClientRect();
-              const x = rect.left + window.scrollX;
-              const y = rect.bottom + window.scrollY;
-
-              showPopup(x, y, response.synonyms, selectedText);
-          } else if (response && response.error) {
-              alert(response.error);
-          } else {
-              alert('Failed to get synonyms.');
-          }
-      });
-  }
-
-  // Function to replace the selected text
-  function replaceSelectedText(replacement) {
-      const selection = window.getSelection();
-      if (!selection.rangeCount) return;
-
-      const range = selection.getRangeAt(0);
-
-      // For contentEditable elements, like in Google Docs
-      if (document.activeElement && document.activeElement.isContentEditable) {
-          // Attempt to replace text in contentEditable element
-          document.execCommand('insertText', false, replacement);
       } else {
-          // Standard text replacement
-          range.deleteContents();
-          range.insertNode(document.createTextNode(replacement));
-          selection.removeAllRanges();
+          synonymWindow.innerHTML += "<div style='padding: 4px;'>No synonyms found.</div>";
       }
+  });
+}
+
+// Replace selected word with chosen synonym
+function replaceWord(originalWord, synonym) {
+  const range = window.getSelection().getRangeAt(0);
+  range.deleteContents();
+  range.insertNode(document.createTextNode(synonym));
+}
+
+// Listen for text selection in both Google Docs and normal editors
+document.addEventListener('mouseup', function () {
+  if (isGoogleDocs()) {
+      handleGoogleDocsSelection();
+  } else {
+      handleNormalSelection();
   }
-
-  // Listen for selection changes
-  document.addEventListener('selectionchange', () => {
-      setTimeout(() => {
-          const selection = window.getSelection();
-          if (!selection) {
-              removeIcon();
-              return;
-          }
-
-          const selectedText = selection.toString().trim();
-          if (selectedText) {
-              try {
-                  const range = selection.getRangeAt(0);
-                  const rect = range.getBoundingClientRect();
-                  const x = rect.right + window.scrollX;
-                  const y = rect.top + window.scrollY;
-
-                  showIcon(x, y, selectedText);
-              } catch (e) {
-                  // In case of errors, remove the icon
-                  removeIcon();
-              }
-          } else {
-              removeIcon();
-          }
-      }, 100);
-  });
-
-  // Remove icon and popup when clicking elsewhere
-  document.addEventListener('mousedown', (event) => {
-      if (iconDiv && !iconDiv.contains(event.target)) {
-          removeIcon();
-      }
-      if (popupDiv && !popupDiv.contains(event.target)) {
-          removePopup();
-      }
-  });
-})();
+});
