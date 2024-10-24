@@ -14,16 +14,33 @@ document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('result').textContent = items.result;
       }
   });
+
+  // Auto-save API key
+  document.getElementById('apiKey').addEventListener('input', () => {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      chrome.storage.local.set({ 'apiKey': apiKey });
+  });
+
+  // Auto-save word
+  document.getElementById('word').addEventListener('input', () => {
+      const word = document.getElementById('word').value.trim();
+      chrome.storage.local.set({ 'word': word });
+  });
+
+  // Auto-save sentence
+  document.getElementById('sentence').addEventListener('input', () => {
+      const sentence = document.getElementById('sentence').value.trim();
+      chrome.storage.local.set({ 'sentence': sentence });
+  });
 });
 
-// Save API Key when "Save API Key" button is clicked
+// Save API Key when "Save API Key" button is clicked (Optional if using auto-save above)
 document.getElementById('saveApiKey').addEventListener('click', () => {
   const apiKey = document.getElementById('apiKey').value.trim();
   if (!apiKey) {
       alert('Please enter your API key.');
       return;
   }
-  // Save the API key
   chrome.storage.local.set({ 'apiKey': apiKey }, () => {
       alert('API key saved.');
   });
@@ -44,7 +61,7 @@ document.getElementById('submit').addEventListener('click', async () => {
   // Save the word and sentence
   chrome.storage.local.set({ 'word': word, 'sentence': sentence });
 
-  const prompt = `Provide synonyms for the word "${word}" that make sense in the context of the sentence: "${sentence}".`;
+  const prompt = `Provide synonyms for the word "${word}" that make sense in the context of the sentence: "${sentence}". Output only the words, one after eachother, seperated by commas.`;
 
   try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -64,7 +81,6 @@ document.getElementById('submit').addEventListener('click', async () => {
       if (!response.ok) {
           const error = await response.json();
           resultDiv.textContent = `Error: ${error.error.message}`;
-          // Save the error message to storage
           chrome.storage.local.set({ 'result': resultDiv.textContent });
           return;
       }
@@ -73,12 +89,10 @@ document.getElementById('submit').addEventListener('click', async () => {
       const reply = data.choices[0].message.content.trim();
       resultDiv.textContent = reply;
 
-      // Save the result to storage
       chrome.storage.local.set({ 'result': reply });
   } catch (error) {
       console.error(error);
       resultDiv.textContent = 'An error occurred.';
-      // Save the error message to storage
       chrome.storage.local.set({ 'result': resultDiv.textContent });
   }
 });
