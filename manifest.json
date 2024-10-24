@@ -3,12 +3,24 @@
   "name": "Synonym Suggester",
   "version": "1.0",
   "description": "Suggests synonyms for a word in a sentence using OpenAI's GPT model.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
   "host_permissions": ["https://api.openai.com/*"],
+  "background": {
+    "service_worker": "scripts/background.js"
+  },
   "action" : {
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "images/hello_extensions.png"
     }
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["scripts/content.js"],
+      "run_at": "document_end",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ]
 }

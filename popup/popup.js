@@ -44,7 +44,7 @@ document.getElementById('submit').addEventListener('click', async () => {
   // Save the word and sentence
   chrome.storage.local.set({ 'word': word, 'sentence': sentence });
 
-  const prompt = `Provide synonyms for the word "${word}" that make sense in the context of the sentence: "${sentence}". Provide three. If no suitable replacements, reply with "No suitable replacements."`;
+  const prompt = `Provide synonyms for the word "${word}" that make sense in the context of the sentence: "${sentence}".`;
 
   try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
